@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "C:\\Users\\AW17R4\\StudioProjects\\MaskDetection\\sdk\\libcxx_helper\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\AW17R4\\AppData\\Local\\Android\\Sdk\\cmake\\3.18.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\AW17R4\\StudioProjects\\MaskDetection\\sdk\\.cxx\\Debug\\54275p47\\x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\AW17R4\\AppData\\Local\\Android\\Sdk\\cmake\\3.18.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\AW17R4\\StudioProjects\\MaskDetection\\sdk\\.cxx\\Debug\\54275p47\\x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "opencv_jni_shared::@6890427a1f51a3e7e1df": {
+      "artifactName": "opencv_jni_shared",
+      "abi": "x86_64",
+      "output": "C:\\Users\\AW17R4\\StudioProjects\\MaskDetection\\sdk\\.cxx\\Debug\\54275p47\\x86_64\\libopencv_jni_shared.a",
+      "runtimeFiles": []
+    }
+  }
+}
