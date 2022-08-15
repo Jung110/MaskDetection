@@ -1,141 +1,284 @@
 package com.example.maskdetection;
 
-
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.content.DialogInterface;
-import android.os.Bundle;
 import android.annotation.TargetApi;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
-import android.view.WindowManager;
+import android.view.View;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.JavaCameraView;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfFloat;
+import org.opencv.core.MatOfInt;
+import org.opencv.core.MatOfRect2d;
+import org.opencv.core.Point;
+import org.opencv.core.Rect2d;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.dnn.Net;
+import org.opencv.imgproc.Imgproc;
 
+import org.opencv.dnn.Dnn;
+import org.opencv.utils.Converters;
+
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static android.Manifest.permission.CAMERA;
 
 
-public class MainActivity extends AppCompatActivity
-        implements CameraBridgeViewBase.CvCameraViewListener2 {
+public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
 
-    private static final String TAG = "opencv";
-//    opencv에서 가장 기본이 되는 데이터 타입으로 행렬(Matrix) 구조체이다.
-//            출처: https://nextus.tistory.com/14 [NextUs:티스토리]
-    private Mat matInput;
-    private Mat matResult;
-// org.opencv.android.JavaCameraView 위젯을 저장할 변수
-    private CameraBridgeViewBase mOpenCvCameraView;
-// Mat addr 보내서
-    public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
+    CameraBridgeViewBase cameraBridgeViewBase;
+    BaseLoaderCallback baseLoaderCallback;
+    boolean startYolo = false;
+    boolean firstTimeYolo = false;
+    Net tinyYolo;
 
-
-    static {
-        System.loadLibrary("opencv_java4");
-        System.loadLibrary("native-lib");
+    private static String getPath(String file , Context context){
+        AssetManager assetManager = context.getAssets();
+        BufferedInputStream inputStream = null;
+        try {
+//            read data in assets dir
+            inputStream = new BufferedInputStream(assetManager.open(file));
+            byte[] data = new byte[inputStream.available()];
+            inputStream.read(data);
+            inputStream.close();
+//           create copy file in storage
+            File outFile = new File(context.getFilesDir() , file);
+            FileOutputStream os = new FileOutputStream(outFile);
+            os.write(data);
+            os.close();
+            return outFile.getAbsolutePath();
+        }
+        catch (IOException e){
+            e.printStackTrace();
+            Log.println(Log.ERROR ,"path", "Wrong");
+            return null;
+        }
     }
 
+    public void YOLO(View Button){
 
+        if (startYolo == false){
 
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
-        @Override
-        public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS:
-                {
-                    mOpenCvCameraView.enableView();
-                } break;
-                default:
-                {
-                    super.onManagerConnected(status);
-                } break;
+            startYolo = true;
+            if (firstTimeYolo == false){
+
+                firstTimeYolo = true;
+                String tinyYoloCfg = getPath("yolov3_testing.cfg",this );
+                String tinyYoloWeights =getPath("yolov3.weights",this);
+
+                tinyYolo = Dnn.readNetFromDarknet(tinyYoloCfg, tinyYoloWeights);
             }
         }
-    };
+        else{
+            startYolo = false;
+        }
+    }
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
         setContentView(R.layout.activity_main);
 
-        mOpenCvCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_surface_view);
-        mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
-        mOpenCvCameraView.setCvCameraViewListener(this);
-        mOpenCvCameraView.setCameraIndex(0); // front-camera(1),  back-camera(0)
-    }
-
-    @Override
-    public void onPause()
-    {
-        super.onPause();
-        if (mOpenCvCameraView != null)
-            mOpenCvCameraView.disableView();
-    }
-
-    @Override
-    public void onResume()
-    {
-        super.onResume();
-
-        if (!OpenCVLoader.initDebug()) {
-            Log.d(TAG, "onResume :: Internal OpenCV library not found.");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
-        } else {
-            Log.d(TAG, "onResum :: OpenCV library found inside package. Using it!");
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-        }
-    }
+        cameraBridgeViewBase = (JavaCameraView)findViewById(R.id.activity_surface_view);
+        cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
+        cameraBridgeViewBase.setCvCameraViewListener(this);
 
 
-    public void onDestroy() {
-        super.onDestroy();
+        //System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        baseLoaderCallback = new BaseLoaderCallback(this) {
+            @Override
+            public void onManagerConnected(int status) {
+                super.onManagerConnected(status);
 
-        if (mOpenCvCameraView != null)
-            mOpenCvCameraView.disableView();
-    }
+                switch(status){
 
-    @Override
-    public void onCameraViewStarted(int width, int height) {
-
-    }
-
-    @Override
-    public void onCameraViewStopped() {
+                    case BaseLoaderCallback.SUCCESS:
+                        cameraBridgeViewBase.enableView();
+                        break;
+                    default:
+                        super.onManagerConnected(status);
+                        break;
+                }
+            }
+        };
 
     }
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
-        matInput = inputFrame.rgba();
+        Mat frame = inputFrame.rgba();
 
-        if ( matResult == null )
+        if (startYolo == true) {
 
-            matResult = new Mat(matInput.rows(), matInput.cols(), matInput.type());
+            Imgproc.cvtColor(frame, frame, Imgproc.COLOR_RGBA2RGB);
 
-        ConvertRGBtoGray(matInput.getNativeObjAddr(), matResult.getNativeObjAddr());
+            Mat imageBlob = Dnn.blobFromImage(frame,
+                    0.00392, new Size(416,416),new Scalar(0, 0, 0),/*swapRB*/false, /*crop*/false);
 
-        return matResult;
+            tinyYolo.setInput(imageBlob);
+
+            java.util.List<Mat> result = new java.util.ArrayList<Mat>(2);
+
+            tinyYolo.forward(result,tinyYolo.getUnconnectedOutLayersNames());
+
+            float confThreshold = 0.3f;
+
+            List<Integer> clsIds = new ArrayList<>();
+            List<Float> confs = new ArrayList<>();
+            List<Rect2d> rects = new ArrayList<>();
+
+
+            for (int i = 0; i < result.size(); ++i)
+            {
+                Mat level = result.get(i);
+                for (int j = 0; j < level.rows(); ++j)
+                {
+                    Mat row = level.row(j);
+                    Mat scores = row.colRange(5, level.cols());
+
+                    Core.MinMaxLocResult mm = Core.minMaxLoc(scores);
+
+                    float confidence = (float)mm.maxVal;
+
+                    Point classIdPoint = mm.maxLoc;
+
+                    if (confidence > confThreshold)
+                    {
+                        int centerX = (int)(row.get(0,0)[0] * frame.cols());
+                        int centerY = (int)(row.get(0,1)[0] * frame.rows());
+                        int width   = (int)(row.get(0,2)[0] * frame.cols());
+                        int height  = (int)(row.get(0,3)[0] * frame.rows());
+
+
+                        int left    = centerX - width  / 2;
+                        int top     = centerY - height / 2;
+
+                        clsIds.add((int)classIdPoint.x);
+                        confs.add((float)confidence);
+
+                        rects.add(new Rect2d(left,top,width,height));
+                    }
+                }
+            }
+            int ArrayLength = confs.size();
+
+            if (ArrayLength>=1) {
+                // Apply non-maximum suppression procedure.
+                float nmsThresh = 0.2f;
+
+                MatOfFloat confidences = new MatOfFloat(Converters.vector_float_to_Mat(confs));
+
+                Rect2d[] boxesArray = rects.toArray(new Rect2d[0]);
+
+                MatOfRect2d boxes = new MatOfRect2d(boxesArray);
+
+                MatOfInt indices = new MatOfInt();
+
+                Dnn.NMSBoxes(boxes, confidences, confThreshold, nmsThresh, indices);
+
+                // Draw result boxes:
+                int[] ind = indices.toArray();
+                for (int i = 0; i < ind.length; ++i) {
+
+                    int idx = ind[i];
+                    Rect2d box = boxesArray[idx];
+
+                    int idGuy = clsIds.get(idx);
+
+                    float conf = confs.get(idx);
+
+                    List<String> cocoNames = Arrays.asList("Without Mask",
+                            "With Mask",
+                            "Invalid Mask");
+
+                    int intConf = (int) (conf * 100);
+
+                    Imgproc.putText(frame,cocoNames.get(idGuy) + " " + intConf + "%",box.tl(),0, 2, new Scalar(255,255,0),2);
+
+                    Imgproc.rectangle(frame, box.tl(), box.br(), new Scalar(255, 0, 0), 2);
+                }
+            }
+        }
+        return frame;
+    }
+
+    @Override
+    public void onCameraViewStarted(int width, int height) {
+
+        if (startYolo == true){
+            String tinyYoloCfg = getPath("yolov3_testing.cfg",this );
+            String tinyYoloWeights =getPath("yolov3.weights",this);
+
+            tinyYolo = Dnn.readNetFromDarknet(tinyYoloCfg, tinyYoloWeights);
+
+        }
+    }
+    @Override
+    public void onCameraViewStopped() {
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (!OpenCVLoader.initDebug()){
+            Toast.makeText(getApplicationContext(),"There's a problem, yo!", Toast.LENGTH_SHORT).show();
+        }
+
+        else
+        {
+            baseLoaderCallback.onManagerConnected(baseLoaderCallback.SUCCESS);
+        }
+
+
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if(cameraBridgeViewBase!=null){
+
+            cameraBridgeViewBase.disableView();
+        }
+
     }
 
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (cameraBridgeViewBase!=null){
+            cameraBridgeViewBase.disableView();
+        }
+    }
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
-        return Collections.singletonList(mOpenCvCameraView);
+        return Collections.singletonList(cameraBridgeViewBase);
     }
 
 
@@ -205,3 +348,4 @@ public class MainActivity extends AppCompatActivity
 
 
 }
+
