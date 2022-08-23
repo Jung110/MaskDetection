@@ -77,16 +77,16 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             return null;
         }
     }
-
+// 욜로 버튼을 눌렸을 때
     public void YOLO(View Button){
-
+//    욜로 시자 여부를 트루로
         if (startYolo == false){
 
             startYolo = true;
             if (firstTimeYolo == false){
-
+// 처음 시작하는 것이면 cfg , weight 를 가지고 와서 openCv Dnn 에 내장되어 있는 readNetFromDarknet 을 사용해 net 객체를 반환한다.
                 firstTimeYolo = true;
-                String tinyYoloCfg = getPath("yolov3_testing.cfg",this );
+                String tinyYoloCfg = getPath("yolov3.cfg",this );
                 String tinyYoloWeights =getPath("yolov3.weights",this);
 
                 tinyYolo = Dnn.readNetFromDarknet(tinyYoloCfg, tinyYoloWeights);
@@ -142,11 +142,11 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
             tinyYolo.setInput(imageBlob);
 
-            java.util.List<Mat> result = new java.util.ArrayList<Mat>(2);
-
+            java.util.List<Mat> result = new java.util.ArrayList<Mat>(3);
+            List<String> a = tinyYolo.getUnconnectedOutLayersNames();
             tinyYolo.forward(result,tinyYolo.getUnconnectedOutLayersNames());
 
-            float confThreshold = 0.3f;
+            float confThreshold = 0.5f;
 
             List<Integer> clsIds = new ArrayList<>();
             List<Float> confs = new ArrayList<>();
@@ -219,7 +219,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                     int intConf = (int) (conf * 100);
 
                     Imgproc.putText(frame,cocoNames.get(idGuy) + " " + intConf + "%",box.tl(),0, 2, new Scalar(255,255,0),2);
-
+                    Log.println(Log.ERROR , "names" , cocoNames.get(idGuy) + intConf);
                     Imgproc.rectangle(frame, box.tl(), box.br(), new Scalar(255, 0, 0), 2);
                 }
             }
@@ -347,5 +347,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     }
 
 
+    public void Chonge(View view) {
+    }
 }
 
